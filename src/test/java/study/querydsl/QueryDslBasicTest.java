@@ -425,4 +425,44 @@ public class QueryDslBasicTest {
     }
 
 
+    @Test
+    public void bulkUpdate(){
+
+        JPAQueryFactory jpaQueryFactory = new JPAQueryFactory(em);
+        long 비회원 = jpaQueryFactory.update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+
+        //JPA 벌크 연산을 할 경우 DB 데이터와 영속성 컨텍스트의 데이터가 안맞기 떄문에
+
+        em.flush();
+        em.clear();
+
+        //데이터를 모두 flush 하고 영속성 컨텍스트를 초기화 해주어야 제대로 된 DB 값이 넘어온다.
+
+    }
+
+
+    @Test
+    public void bulkAdd(){
+        JPAQueryFactory jq =new JPAQueryFactory(em);
+
+        jq.update(member)
+                .set(member.age, member.age.add(1))
+                .execute();
+        //숫자 더하기, 빼기 곱하기 등듣
+    }
+
+    @Test
+    public void bulkDelete(){
+        JPAQueryFactory jq = new JPAQueryFactory(em);
+
+        jq.delete(member)
+                .where(member.age.gt(18))
+                .execute();
+    }
+
+
+
 }
