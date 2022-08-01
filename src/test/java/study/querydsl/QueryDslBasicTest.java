@@ -1,8 +1,11 @@
 package study.querydsl;
 
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -11,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import study.querydsl.dto.MemberDto;
+import study.querydsl.dto.QMemberDto;
 import study.querydsl.entity.Member;
 import study.querydsl.entity.QMember;
 import study.querydsl.entity.Team;
@@ -21,6 +25,7 @@ import javax.transaction.Transactional;
 import java.util.List;
 
 import static com.querydsl.jpa.JPAExpressions.select;
+import static org.assertj.core.api.Assertions.assertThat;
 import static study.querydsl.entity.QMember.member;
 import static study.querydsl.entity.QTeam.team;
 
@@ -59,7 +64,7 @@ public class QueryDslBasicTest {
                 .setParameter("username", "member1")
                 .getSingleResult();
 
-        Assertions.assertThat(singleResult.getUsername()).isEqualTo("member1");
+        assertThat(singleResult.getUsername()).isEqualTo("member1");
     }
 
     @Test
@@ -83,7 +88,7 @@ public class QueryDslBasicTest {
                         .and(QMember.member.age.eq(10)))
                 .fetchOne();
 
-        Assertions.assertThat(member.getUsername()).isEqualTo("member1");
+        assertThat(member.getUsername()).isEqualTo("member1");
     }
 
     @Test
@@ -121,7 +126,7 @@ public class QueryDslBasicTest {
         fetch.get(1);
         fetch.get(2);
 
-        Assertions.assertThat(member5.getUsername()).isEqualTo("member5");
+        assertThat(member5.getUsername()).isEqualTo("member5");
 
     }
 
@@ -136,7 +141,7 @@ public class QueryDslBasicTest {
                         .limit(2)
                         .fetch();
 
-        Assertions.assertThat(fetch.size()).isEqualTo(2);
+        assertThat(fetch.size()).isEqualTo(2);
     }
 
     @Test
@@ -153,7 +158,7 @@ public class QueryDslBasicTest {
 
         Tuple tuple = fetch.get(0);
 
-        Assertions.assertThat(tuple.get(member.count())).isEqualTo(4);
+        assertThat(tuple.get(member.count())).isEqualTo(4);
     }
 
     @Test
@@ -167,7 +172,7 @@ public class QueryDslBasicTest {
 
         Tuple tuple = fetch.get(0);
 
-        Assertions.assertThat(tuple.get(team.name)).isEqualTo("teamA");
+        assertThat(tuple.get(team.name)).isEqualTo("teamA");
     }
 
     /**
@@ -226,7 +231,7 @@ public class QueryDslBasicTest {
                 ))
                 .fetch();
 
-        Assertions.assertThat(result).extracting("age").containsExactly("40");
+        assertThat(result).extracting("age").containsExactly("40");
     }
 
 
@@ -349,9 +354,75 @@ public class QueryDslBasicTest {
     }
 
 
+    @Test
+    public void findByQueryProjection(){
+        JPAQueryFactory qf = new JPAQueryFactory(em);
+
+        List<MemberDto> fetch = qf.select(new QMemberDto(member.username, member.age))
+                .from(member)
+                .fetch();
+
+        for (MemberDto memberDto : fetch) {
+            System.out.println("memberDto = " + memberDto);
+        }
+
+    }
+
+    @Test
+    public void dynamicQuery_BooleanBuilder() {
+        String usernameParam = "member1";
+        Integer ageParam = 10;
+
+        List<Member> result = searchMember1(usernameParam, ageParam);
+
+        assertThat(result.size()).isEqualTo(1);
+    }
+
+    private List<Member> searchMember1(String usernameParam, Integer ageParam) {
+        JPAQueryFactory qf = new JPAQueryFactory(em);
+
+        BooleanBuilder booleanBuilder = new BooleanBuilder();
+        if(usernameParam != null){
+            booleanBuilder.and(member.username.eq(usernameParam));
+        }
+
+        if(ageParam != null){
+            booleanBuilder.and(member.age.eq(ageParam));
+        }
+             return  qf.selectFrom(member)
+                     .where(booleanBuilder)
+                     .fetch();
+
+    }
+
+    @Test
+    public void dynamicQuery_WhereParam(){
+        String usernameParam = "member1";
+        Integer ageParam = 10;
+
+        List<Member> result = searchMember2(usernameParam, ageParam);
+    }
+
+    private List<Member> searchMember2(String usernameParam, Integer ageParam) {
+        JPAQueryFactory qf = new JPAQueryFactory(em);
+
+        return qf.selectFrom(member)
+                .where(usernameEq(usernameParam), ageParamEq(ageParam))
+                .fetch();
+    }
 
 
+    private BooleanExpression usernameEq(String usernameParam) {
+        return usernameParam != null ? member.username.eq(usernameParam) : null;
+    }
 
+    private BooleanExpression ageParamEq(Integer ageParam) {
+        return ageParam != null ? member.age.eq(ageParam) : null;
+    }
+
+    private BooleanExpression allEq(String usernameParam, Integer ageParam){
+        return usernameEq(usernameParam).and(ageParamEq(ageParam));
+    }
 
 
 }
